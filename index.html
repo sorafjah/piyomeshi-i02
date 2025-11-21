@@ -43,11 +43,18 @@
             box-sizing: border-box;
         }
         h1 {
-            font-size: 36px; /* 少し小さく */
+            font-size: 42px;
             margin-bottom: 10px;
-            color: #333;
+            /* タイトルを水色に変更し、視認性のため白と黒の縁取りを追加 */
+            color: #00BFFF; 
             text-align: center;
-            font-weight: 800;
+            font-weight: 900;
+            text-shadow: 
+                2px 2px 0 #fff, 
+                -2px -2px 0 #fff,
+                2px -2px 0 #fff,
+                -2px 2px 0 #fff,
+                4px 4px 0 #333; /* 影 */
         }
         p {
             font-size: 14px;
@@ -57,20 +64,19 @@
         }
         .instructions {
             background: #fff;
-            padding: 15px;
+            padding: 20px;
             border-radius: 16px;
             border: 1px solid #ddd;
             margin-bottom: 20px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             max-width: 85%;
         }
-        /* ボタンのスタイル調整 */
         .btn-group {
             display: flex;
             flex-direction: column;
             gap: 15px;
-            width: 80%;
-            max-width: 300px;
+            width: 70%;
+            max-width: 260px;
         }
         button {
             padding: 14px 20px;
@@ -84,19 +90,20 @@
             box-shadow: 0 4px 0 #d4a000;
             transition: transform 0.1s;
             -webkit-tap-highlight-color: transparent;
-            width: 100%; /* 幅いっぱいに */
+            width: 100%;
         }
         button:active {
             transform: scale(0.95);
             box-shadow: 0 2px 0 #d4a000;
         }
+        /* 音なしボタンを薄い黄色に変更 */
         button.secondary {
-            background-color: #e0e0e0;
-            box-shadow: 0 4px 0 #bdbdbd;
+            background-color: #FFF9C4; /* 薄い黄色 */
+            box-shadow: 0 4px 0 #FBC02D;
             color: #555;
         }
         button.secondary:active {
-            box-shadow: 0 2px 0 #bdbdbd;
+            box-shadow: 0 2px 0 #FBC02D;
         }
 
         .hidden {
@@ -104,10 +111,10 @@
         }
         #feverIndicator {
             position: absolute;
-            top: calc(120px + env(safe-area-inset-top));
+            top: calc(100px + env(safe-area-inset-top));
             left: 50%;
             transform: translateX(-50%);
-            font-size: 32px; /* 少し小さく */
+            font-size: 28px;
             font-weight: bold;
             color: #ff0055;
             text-shadow: 2px 2px 0 #fff;
@@ -127,26 +134,24 @@
 
     <canvas id="gameCanvas"></canvas>
     <div id="feverIndicator">🔥 FEVER TIME! 🔥</div>
-    <!-- 音量ボタン削除 -->
 
     <!-- スタート画面 -->
     <div id="startScreen">
         <h1>ピヨ飯</h1>
         <div class="instructions">
             <p>
-                👈 <b>スワイプ</b> で移動<br>
-                👆 <b>タップ</b> でジャンプ<br>
+                <b>横スワイプ</b> で移動<br>
+                <b>タッチ</b> でジャンプ<br>
                 <br>
-                <span style="color:#ff0055; font-weight:bold;">重要:</span><br>
-                地面にいると食べ物は取れません！<br>
-                <b>ジャンプして体当たり</b>で打ち返そう！
+                <span style="color:#ff0055; font-weight:bold;">ルール:</span><br>
+                🍙<b>おにぎり</b>で体力回復！<br>
+                🌵🐕🐝に気を付けて！
             </p>
         </div>
         <div class="btn-group">
             <button onclick="startGame(true)">🔊 音ありでスタート</button>
             <button onclick="startGame(false)" class="secondary">🔇 音なしでスタート</button>
         </div>
-        <p style="font-size: 11px; margin-top:15px; color:#999;">ホーム画面に追加すると全画面で遊べます</p>
     </div>
 
     <!-- ゲームオーバー画面 -->
@@ -173,9 +178,10 @@
         let health = 100;
         let frameCount = 0;
         let feverTimer = 0;
-        const FEVER_DURATION = 300; 
+        // フィーバータイムを20秒に変更 (60fps * 20 = 1200)
+        const FEVER_DURATION = 1200; 
 
-        // Retinaディスプレイ対応
+        // Retina対応
         let dpr = window.devicePixelRatio || 1;
         let width, height;
 
@@ -191,27 +197,28 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // 定数（サイズ調整：全体的に約70%に縮小）
         const GRAVITY = 0.6;
         const GROUND_OFFSET = 100; 
         const GROUND_Y = () => height - GROUND_OFFSET;
-        const CHICK_ZONE_TOP = 60;     // 80 -> 60
-        const CHICK_ZONE_BOTTOM = 160; // 200 -> 160
+        
+        const CHICK_ZONE_HIGH_OFFSET = 270; 
+        const CHICK_ZONE_HIGHEST_OFFSET = 380; 
 
-        // アセット
-        const NORMAL_FOODS = ['🍎', '🍖', '🍩', '🥕', '🥖', '🥦', '🍕'];
-        const FOOD_SIZE_BASE = 35; // 50 -> 35
+        // アセット変更: スイカ、ハンバーガー、ブロッコリー、ケーキ
+        const NORMAL_FOODS = ['🍉', '🍔', '🥦', '🍰'];
+        
+        // 食べ物サイズ 2割増し (24 -> 29)
+        const FOOD_SIZE_BASE = 29; 
         const CLOUDS = [
-            {x: 50, y: 80, w: 100, h: 50, speed: 0.3}, // 雲も小さく
-            {x: 300, y: 150, w: 130, h: 70, speed: 0.2},
-            {x: 600, y: 100, w: 90, h: 45, speed: 0.4},
-            {x: 800, y: 200, w: 150, h: 75, speed: 0.25}
+            {x: 50, y: 80, w: 80, h: 40, speed: 0.3},
+            {x: 300, y: 150, w: 100, h: 50, speed: 0.2},
+            {x: 600, y: 100, w: 70, h: 35, speed: 0.4},
+            {x: 800, y: 200, w: 120, h: 60, speed: 0.25}
         ];
 
-        // プレイヤー（サイズ縮小）
         const player = {
             x: 0, y: 0, vx: 0, vy: 0,
-            width: 28, height: 56, // 40/80 -> 28/56
+            width: 20, height: 40, 
             grounded: false, stunned: false, stunTimer: 0,
             color: '#333'
         };
@@ -221,6 +228,7 @@
         let enemies = [];
         let particles = [];
         let floatingTexts = [];
+        let cactusList = [];
 
         // サウンド機能
         let audioCtx = null;
@@ -238,26 +246,18 @@
 
         function playSound(type) {
             if (isMuted || !audioCtx) return;
-            
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-
             const now = audioCtx.currentTime;
 
             if (type === 'jump') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now);
-                osc.stop(now + 0.1);
+                // ジャンプ音削除のため無音
             } else if (type === 'hit') {
                 osc.type = 'triangle';
-                osc.frequency.setValueAtTime(400, now);
-                osc.frequency.linearRampToValueAtTime(800, now + 0.05);
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.linearRampToValueAtTime(900, now + 0.05);
                 gain.gain.setValueAtTime(0.1, now);
                 gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
                 osc.start(now);
@@ -270,25 +270,32 @@
                 gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
                 osc.start(now);
                 osc.stop(now + 0.3);
+            } else if (type === 'bounce') { 
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.linearRampToValueAtTime(300, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
             } else if (type === 'heal') {
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(500, now);
-                osc.frequency.setValueAtTime(800, now + 0.1);
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.setValueAtTime(1000, now + 0.1);
                 gain.gain.setValueAtTime(0.1, now);
                 gain.gain.linearRampToValueAtTime(0, now + 0.3);
                 osc.start(now);
                 osc.stop(now + 0.3);
             } else if (type === 'feed') {
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(800, now);
-                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+                osc.frequency.setValueAtTime(900, now);
+                osc.frequency.exponentialRampToValueAtTime(1400, now + 0.15);
                 gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                gain.gain.linearRampToValueAtTime(0, now + 0.15);
                 osc.start(now);
-                osc.stop(now + 0.2);
+                osc.stop(now + 0.15);
             }
         }
-
 
         function init() {
             resize();
@@ -301,10 +308,11 @@
             items = [];
             particles = [];
             enemies = [];
+            cactusList = [];
             floatingTexts = [];
             chicks = [];
 
-            const chickCount = 3 + Math.floor(Math.random() * 2);
+            const chickCount = 2;
             for(let i=0; i<chickCount; i++) {
                 spawnChick(i);
             }
@@ -317,23 +325,34 @@
         }
 
         function spawnChick(index) {
-            const isUpper = index % 2 === 0;
-            const yBase = isUpper ? CHICK_ZONE_TOP : CHICK_ZONE_BOTTOM;
-            const yPos = yBase + Math.random() * 30;
+            let offset;
+            let rowType;
+            
+            if (index === 0) {
+                offset = CHICK_ZONE_HIGH_OFFSET; 
+                rowType = 'high';
+            } else {
+                offset = CHICK_ZONE_HIGHEST_OFFSET; 
+                rowType = 'highest';
+            }
+
+            const baseY = GROUND_Y() - offset;
+            const yPos = baseY - Math.random() * 20;
             
             chicks.push({
-                x: Math.random() * (width - 80) + 40,
+                x: Math.random() * (width - 60) + 30,
                 y: yPos,
-                targetX: Math.random() * (width - 80) + 40,
-                row: isUpper ? 'upper' : 'lower',
+                targetX: Math.random() * (width - 60) + 30,
+                row: rowType,
+                baseY: yPos,
                 stage: 0, 
                 emoji: '🐣',
                 scale: 1.0,
-                dy: 0 
+                state: 'idle', 
+                waitTimer: 0
             });
         }
 
-        // 音の有無を受け取る
         function startGame(enableSound) {
             isMuted = !enableSound;
             if (!isMuted) initAudio();
@@ -348,7 +367,6 @@
         function resetGame() {
             document.getElementById('gameOverScreen').classList.add('hidden');
             document.getElementById('startScreen').classList.remove('hidden');
-            // 再スタート時はまた選んでもらう形式へ
         }
 
         function gameOver() {
@@ -378,8 +396,8 @@
 
             if (player.grounded) {
                 player.vx += diffX * 0.18;
-                if (player.vx > 13) player.vx = 13;
-                if (player.vx < -13) player.vx = -13;
+                if (player.vx > 10) player.vx = 10;
+                if (player.vx < -10) player.vx = -10;
             } else {
                 player.vx += diffX * 0.08;
             }
@@ -395,17 +413,15 @@
                 const touch = e.changedTouches[0];
                 const diffX = touch.clientX - touchStartX;
                 
-                // ジャンプ力は維持（画面が小さい分、相対的に高く飛べる感が出るので少し抑える必要はないが、キビキビさせたいので維持）
-                player.vy = -19; 
+                player.vy = -12.5; 
                 player.grounded = false;
-                playSound('jump');
-
+                
                 let jumpBoost = diffX * 0.3; 
-                if (jumpBoost > 10) jumpBoost = 10;
-                if (jumpBoost < -10) jumpBoost = -10;
+                if (jumpBoost > 8) jumpBoost = 8;
+                if (jumpBoost < -8) jumpBoost = -8;
                 player.vx += jumpBoost;
 
-                createParticles(player.x, player.y + 30, 5, '#ccc');
+                createParticles(player.x, player.y + 20, 3, '#ccc');
             }
         }, {passive: false});
 
@@ -445,12 +461,12 @@
             }
             if (Math.abs(player.vx) < 0.1) player.vx = 0;
 
-            if (player.x < 15) {
-                player.x = 15;
+            if (player.x < 10) {
+                player.x = 10;
                 player.vx *= -0.5;
             }
-            if (player.x > width - 15) {
-                player.x = width - 15;
+            if (player.x > width - 10) {
+                player.x = width - 10;
                 player.vx *= -0.5;
             }
 
@@ -462,35 +478,70 @@
 
             // --- ヒヨコ処理 ---
             chicks.forEach((c) => {
-                if (c.stage >= 3) {
-                     c.y -= 5;
-                     c.x += Math.sin(frameCount * 0.1) * 2;
-                     if (c.y < -100) {
-                         score += 500;
-                         chickensGrown++;
-                         showFloatText(c.x, 80, "出荷! +500", "#FFD700");
-                         playSound('feed');
-                         c.stage = 0;
-                         c.emoji = '🐣';
-                         c.y = (c.row === 'upper' ? CHICK_ZONE_TOP : CHICK_ZONE_BOTTOM) + Math.random()*30;
-                         c.scale = 1.0;
-                     }
-                     return;
+                if (c.state === 'flying') {
+                    c.y -= 4;
+                    c.x += Math.sin(frameCount * 0.1) * 1.5;
+                    
+                    // 画面外へ飛んでいったかチェック
+                    if (c.y < -50) {
+                        score += 500;
+                        chickensGrown++;
+                        
+                        // 画面中央にボーナス表示
+                        showFloatText(width/2, height/2, "すくすくボーナス 500PT", "#FFD700");
+                        
+                        playSound('feed');
+                        
+                        c.state = 'waiting';
+                        c.waitTimer = 180; 
+                    }
+                    return;
                 }
+
+                if (c.state === 'waiting') {
+                    c.waitTimer--;
+                    if (c.waitTimer <= 0) {
+                        c.state = 'entering';
+                        c.stage = 0;
+                        c.emoji = '🐣';
+                        c.scale = 1.0;
+                        c.x = (Math.random() > 0.5) ? -50 : width + 50;
+                        c.targetX = Math.random() * (width - 60) + 30;
+                        c.baseY = GROUND_Y() - (c.row === 'high' ? CHICK_ZONE_HIGH_OFFSET : CHICK_ZONE_HIGHEST_OFFSET) - Math.random() * 20;
+                        c.y = c.baseY;
+                    }
+                    return;
+                }
+
+                if (c.state === 'entering') {
+                    const dx = c.targetX - c.x;
+                    c.x += dx * 0.03; 
+                    c.y = c.baseY + Math.sin(frameCount * 0.15) * 15; 
+                    if (Math.abs(dx) < 10) {
+                        c.state = 'idle';
+                    }
+                    return;
+                }
+
+                if (c.stage >= 3) {
+                    c.state = 'flying';
+                    return;
+                }
+
                 const dx = c.targetX - c.x;
                 c.x += dx * 0.01;
                 if (Math.abs(dx) < 10 && Math.random() < 0.02) {
-                    c.targetX = Math.random() * (width - 80) + 40;
+                    c.targetX = Math.random() * (width - 60) + 30;
                 }
-                if (c.stage === 0) c.emoji = '🐣';
-                if (c.stage === 1) c.emoji = '🐥';
-                if (c.stage === 2) c.emoji = '🐔';
             });
 
-            // --- スポーン ---
-            let spawnRate = feverTimer > 0 ? 15 : 50; 
+            // --- スポーン調整 ---
+            let spawnRate = feverTimer > 0 ? 30 : 90; 
             if (frameCount % spawnRate === 0) spawnItem();
+            
             if (frameCount % 200 === 0 && Math.random() < 0.7) spawnEnemy();
+
+            if (frameCount % 300 === 0 && Math.random() < 0.4) spawnCactus();
 
             // --- アイテム衝突 ---
             for (let i = 0; i < items.length; i++) {
@@ -500,7 +551,7 @@
                     let dx = it1.x - it2.x;
                     let dy = it1.y - it2.y;
                     let dist = Math.hypot(dx, dy);
-                    let minDist = 45; // 衝突半径縮小 60 -> 45
+                    let minDist = 40; 
 
                     if (dist < minDist) {
                         let angle = Math.atan2(dy, dx);
@@ -512,7 +563,7 @@
                         
                         let speed1 = Math.hypot(it1.vx, it1.vy);
                         let speed2 = Math.hypot(it2.vx, it2.vy);
-                        let avgSpeed = (speed1 + speed2) * 0.5 + 2;
+                        let avgSpeed = (speed1 + speed2) * 0.5 + 1;
                         it1.vx = Math.cos(angle) * avgSpeed;
                         it1.vy = Math.sin(angle) * avgSpeed;
                         it2.vx = -Math.cos(angle) * avgSpeed;
@@ -525,18 +576,21 @@
             for (let i = items.length - 1; i >= 0; i--) {
                 let it = items[i];
                 
-                it.vy += GRAVITY * 0.3; 
-                if(it.vy > 6) it.vy = 6; 
+                it.vy += GRAVITY * 0.15; 
+                if(it.vy > 3) it.vy = 3; 
+
                 it.x += it.vx;
                 it.y += it.vy;
                 it.rot += it.rotSpeed;
 
-                if (it.x < 20) {
-                    it.x = 20;
+                it.vx *= 0.99;
+
+                if (it.x < 15) {
+                    it.x = 15;
                     it.vx *= -0.8;
                 }
-                if (it.x > width - 20) {
-                    it.x = width - 20;
+                if (it.x > width - 15) {
+                    it.x = width - 15;
                     it.vx *= -0.8;
                 }
 
@@ -550,16 +604,15 @@
                     const distX = Math.abs(player.x - it.x);
                     const distY = Math.abs((player.y - player.height/2) - it.y);
                     
-                    // 判定縮小
-                    if (distX < 35 && distY < 45) { // 50/60 -> 35/45
+                    if (distX < 40 && distY < 45) { 
                         
                         if (it.type === 'pepper') {
                             player.stunned = true;
                             player.stunTimer = 90;
-                            health -= 10;
+                            health -= 15; 
                             playSound('damage');
-                            createParticles(player.x, player.y, 10, '#FF0000');
-                            showFloatText(player.x, player.y - 40, "しびれた!!", "red");
+                            createParticles(player.x, player.y, 8, '#FF0000');
+                            showFloatText(player.x, player.y - 30, "しびれた!!", "red");
                             items.splice(i, 1);
                             if (health <= 0) gameOver();
                             continue;
@@ -570,7 +623,9 @@
                             playSound('heal');
                             createParticles(it.x, it.y, 15, '#fff');
                             showFloatText(it.x, it.y, "回復!", "#00AA00");
-                            if (Math.random() < 0.1) {
+                            
+                            // おにぎりを食べて20%の確率でフィーバータイム
+                            if (Math.random() < 0.2) {
                                 feverTimer = FEVER_DURATION;
                                 showFloatText(width/2, height/2, "FEVER START!", "#FF0055");
                             }
@@ -579,13 +634,13 @@
                         }
 
                         if (NORMAL_FOODS.includes(it.type)) {
-                            if (it.vy > 0) { // 落ちてくるときだけ
+                            if (it.vy > 0) { 
                                 playSound('hit');
-                                it.vy = -14 - Math.random() * 4; 
-                                it.vx = (Math.random() - 0.5) * 8 + (player.vx * 0.5); 
+                                it.vy = -9 - Math.random() * 3; 
+                                it.vx = (Math.random() - 0.5) * 6 + (player.vx * 0.6); 
                                 
                                 health -= 2; 
-                                createParticles(it.x, it.y, 5, 'orange');
+                                createParticles(it.x, it.y, 4, 'orange');
                                  if (health <= 0) {
                                     health = 0;
                                     gameOver();
@@ -598,14 +653,14 @@
                 // ヒヨコとの当たり判定
                 if (it.vy < 0 && NORMAL_FOODS.includes(it.type)) {
                     for (let c of chicks) {
-                        if (c.stage >= 3) continue;
+                        if (c.stage >= 3 || c.state !== 'idle') continue; 
                         const cDist = Math.hypot(c.x - it.x, c.y - it.y);
-                        if (cDist < 60) { // 判定縮小 80 -> 60
+                        if (cDist < 45) { 
                             score += 100;
                             items.splice(i, 1);
                             playSound('feed');
-                            createParticles(c.x, c.y, 10, '#FFFF00');
-                            showFloatText(c.x, c.y - 30, "うまーい", "#333");
+                            createParticles(c.x, c.y, 8, '#FFFF00');
+                            showFloatText(c.x, c.y - 20, "うまーい", "#333");
                             c.stage++;
                             c.scale = 1.5; 
                             setTimeout(() => c.scale = 1.0, 200);
@@ -623,10 +678,10 @@
                 
                 if (e.type === 'bee') {
                     e.x += e.vx;
-                    e.y = e.baseY + Math.sin(frameCount * 0.1) * 40;
+                    e.y = e.baseY + Math.sin(frameCount * 0.1) * 30;
                 } else if (e.type === 'dog') {
                     e.x += e.vx;
-                    if (e.y >= GROUND_Y()) e.vy = -8;
+                    if (e.y >= GROUND_Y()) e.vy = -6;
                     e.vy += GRAVITY;
                     e.y += e.vy;
                     if (e.y > GROUND_Y()) e.y = GROUND_Y();
@@ -639,17 +694,19 @@
 
                 if (!player.stunned) {
                     const ex = e.type === 'dog' ? e.x : e.x;
-                    const ey = e.type === 'dog' ? e.y - 15 : e.y;
-                    const dist = Math.hypot(player.x - ex, (player.y - 30) - ey);
+                    const ey = e.type === 'dog' ? e.y - 10 : e.y;
+                    const dist = Math.hypot(player.x - ex, (player.y - 20) - ey);
                     
-                    if (dist < 35) { // 判定縮小 50 -> 35
-                        health -= 15;
+                    if (dist < 25) {
+                        let damage = (e.type === 'bee') ? 15 : 10;
+                        health -= damage;
+                        
                         player.stunned = true;
                         player.stunTimer = 30;
                         playSound('damage');
-                        player.vx = e.vx > 0 ? 10 : -10;
-                        createParticles(player.x, player.y, 10, '#880000');
-                        showFloatText(player.x, player.y - 40, "痛ッ!!", "red");
+                        player.vx = e.vx > 0 ? 8 : -8;
+                        createParticles(player.x, player.y, 8, '#880000');
+                        showFloatText(player.x, player.y - 30, "痛ッ!!", "red");
                         enemies.splice(i, 1);
                         if (health <= 0) {
                             health = 0;
@@ -658,6 +715,50 @@
                     }
                 }
             }
+
+            // --- サボテン更新 ---
+            for (let i = cactusList.length - 1; i >= 0; i--) {
+                let c = cactusList[i];
+                c.life--;
+
+                if (c.state === 'growing') {
+                    c.scale += 0.05;
+                    if (c.scale >= 1.0) {
+                        c.scale = 1.0;
+                        c.state = 'active';
+                    }
+                } 
+                else if (c.life < 20) {
+                    c.scale -= 0.05;
+                }
+
+                if (c.life <= 0) {
+                    cactusList.splice(i, 1);
+                    continue;
+                }
+
+                if (c.state === 'active' && !player.stunned) {
+                    const dist = Math.hypot(player.x - c.x, (player.y - 10) - c.y);
+                    if (dist < 25) {
+                        health -= 10; 
+                        player.stunned = true;
+                        player.stunTimer = 40;
+                        playSound('bounce');
+                        createParticles(player.x, player.y, 8, '#2E7D32'); 
+                        showFloatText(player.x, player.y - 30, "痛ッ!!", "red");
+                        
+                        const bounceDir = player.x < c.x ? -1 : 1;
+                        player.vx = bounceDir * 12; 
+                        player.vy = -8;             
+
+                        if (health <= 0) {
+                            health = 0;
+                            gameOver();
+                        }
+                    }
+                }
+            }
+
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
@@ -686,24 +787,37 @@
             ctx.fillStyle = '#8BC34A'; 
             ctx.fillRect(0, GROUND_Y(), width, height - GROUND_Y());
             ctx.strokeStyle = '#558B2F';
-            ctx.lineWidth = 5;
+            ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.moveTo(0, GROUND_Y());
             ctx.lineTo(width, GROUND_Y());
             ctx.stroke();
 
             chicks.forEach(c => {
+                if (c.state === 'waiting') return;
+
                 ctx.save();
                 ctx.translate(c.x, c.y);
                 if (c.scale !== 1.0) ctx.scale(c.scale, c.scale);
-                let size = 45; // サイズ縮小
-                if (c.stage === 0) size = 35;
-                if (c.stage === 1) size = 50;
-                if (c.stage === 2) size = 58;
-                if (c.stage >= 3) size = 65;
+                let size = 30; 
+                if (c.stage === 0) size = 24;
+                if (c.stage === 1) size = 36;
+                if (c.stage === 2) size = 42;
+                if (c.stage >= 3) size = 48;
                 ctx.font = size + 'px serif';
                 ctx.textAlign = 'center';
                 ctx.fillText(c.emoji, 0, 0);
+                ctx.restore();
+            });
+
+            cactusList.forEach(c => {
+                ctx.save();
+                ctx.translate(c.x, c.y);
+                ctx.scale(1, c.scale);
+                ctx.font = '35px serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom'; 
+                ctx.fillText(c.emoji, 0, 5); 
                 ctx.restore();
             });
 
@@ -711,7 +825,7 @@
                 ctx.save();
                 ctx.translate(e.x, e.y);
                 if (e.vx > 0) ctx.scale(-1, 1);
-                ctx.font = '45px serif'; // 60 -> 45
+                ctx.font = '30px serif'; 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(e.emoji, 0, 0);
@@ -724,11 +838,10 @@
                 ctx.save();
                 ctx.translate(it.x, it.y);
                 ctx.rotate(it.rot);
-                // おにぎり60->40, 他50->35
-                ctx.font = (it.type === 'onigiri' ? 40 : FOOD_SIZE_BASE) + 'px serif';
+                ctx.font = (it.type === 'onigiri' ? 36 : FOOD_SIZE_BASE) + 'px serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                if (player.grounded && it.y > player.y - 80 && Math.abs(player.x - it.x) < 60) {
+                if (player.grounded && it.y > player.y - 50 && Math.abs(player.x - it.x) < 40) {
                      ctx.globalAlpha = 0.6;
                 }
                 ctx.fillText(it.emoji, 0, 0);
@@ -742,10 +855,10 @@
             });
 
             floatingTexts.forEach(t => {
-                ctx.font = 'bold 18px sans-serif'; // 24 -> 18
+                ctx.font = 'bold 14px sans-serif';
                 ctx.fillStyle = t.color;
                 ctx.strokeStyle = 'white';
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 2;
                 ctx.strokeText(t.text, t.x, t.y);
                 ctx.fillText(t.text, t.x, t.y);
             });
@@ -757,10 +870,20 @@
             const rand = Math.random();
             let type, emoji;
             
-            if (rand < 0.1) { 
+            // ★ 確率調整
+            // 唐辛子: 20% (0.20)
+            let pepperRate = 0.20; 
+            let onigiriRate = 0.10; 
+
+            // おにぎり救済: 体力30以下で20%に
+            if (health <= 30) {
+                onigiriRate = 0.20;
+            }
+
+            if (rand < pepperRate) {
                 type = 'pepper';
                 emoji = '🌶️';
-            } else if (rand < 0.2) { 
+            } else if (rand < pepperRate + onigiriRate) {
                 type = 'onigiri';
                 emoji = '🍙';
             } else {
@@ -770,7 +893,7 @@
 
             items.push({
                 x: Math.random() * (width - 40) + 20,
-                y: -60,
+                y: -30,
                 vx: 0, vy: 0,
                 rot: 0, rotSpeed: (Math.random() - 0.5) * 0.1,
                 type: type, emoji: emoji
@@ -780,7 +903,7 @@
         function spawnEnemy() {
             const isLeft = Math.random() > 0.5;
             const startX = isLeft ? -50 : width + 50;
-            const speed = isLeft ? (Math.random() * 2 + 3) : -(Math.random() * 2 + 3);
+            const speed = isLeft ? (Math.random() * 2 + 2) : -(Math.random() * 2 + 2);
             
             if (Math.random() > 0.5) {
                 enemies.push({
@@ -790,14 +913,26 @@
                     vx: speed * 1.5, vy: 0, life: 600
                 });
             } else {
-                const beeY = GROUND_Y() - 100; // 130 -> 100 (少し下げる)
+                const beeY = GROUND_Y() - 70; 
                 enemies.push({
                     type: 'bee', emoji: '🐝',
                     x: startX, y: beeY,
-                    baseY: beeY + (Math.random() * 30),
+                    baseY: beeY + (Math.random() * 20),
                     vx: speed, vy: 0, life: 600
                 });
             }
+        }
+
+        function spawnCactus() {
+            const x = Math.random() * (width - 100) + 50;
+            cactusList.push({
+                x: x,
+                y: GROUND_Y(),
+                emoji: '🌵',
+                life: 300,     
+                scale: 0,      
+                state: 'growing' 
+            });
         }
 
         function drawPlayer() {
@@ -805,46 +940,46 @@
             const y = player.y;
             
             ctx.strokeStyle = player.color;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2.5; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
             if (player.stunned) {
                 ctx.strokeStyle = (Math.floor(frameCount / 4) % 2 === 0) ? '#FFFF00' : '#333';
-                if (Math.random() < 0.3) ctx.translate((Math.random()-0.5)*3, 0); 
+                if (Math.random() < 0.3) ctx.translate((Math.random()-0.5)*2, 0); 
             }
 
-            // 体 (サイズ調整: 高さ50 -> 35)
+            // 体
             ctx.beginPath();
             ctx.moveTo(x, y); 
-            ctx.lineTo(x, y - 35); 
+            ctx.lineTo(x, y - 25); 
             ctx.stroke();
 
-            // 足 (長さ20 -> 14, 幅10/15 -> 7/10)
+            // 足
             ctx.beginPath();
             if (player.grounded) {
-                ctx.moveTo(x, y); ctx.lineTo(x - 7, y + 14);
-                ctx.moveTo(x, y); ctx.lineTo(x + 7, y + 14);
+                ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 10);
+                ctx.moveTo(x, y); ctx.lineTo(x + 5, y + 10);
             } else {
-                ctx.moveTo(x, y); ctx.lineTo(x - 10, y + 7);
-                ctx.moveTo(x, y); ctx.lineTo(x + 10, y + 14);
+                ctx.moveTo(x, y); ctx.lineTo(x - 7, y + 5);
+                ctx.moveTo(x, y); ctx.lineTo(x + 7, y + 10);
             }
             ctx.stroke();
 
-            // 手 (高さ35/20 -> 24/14, 幅15/20 -> 10/14)
+            // 手
             ctx.beginPath();
             if (player.stunned) {
-                ctx.moveTo(x, y - 24); ctx.lineTo(x - 10, y - 7);
-                ctx.moveTo(x, y - 24); ctx.lineTo(x + 10, y - 7);
+                ctx.moveTo(x, y - 18); ctx.lineTo(x - 7, y - 5);
+                ctx.moveTo(x, y - 18); ctx.lineTo(x + 7, y - 5);
             } else {
-                ctx.moveTo(x, y - 24); ctx.lineTo(x - 14, y - 14);
-                ctx.moveTo(x, y - 24); ctx.lineTo(x + 14, y - 35); 
+                ctx.moveTo(x, y - 18); ctx.lineTo(x - 10, y - 10);
+                ctx.moveTo(x, y - 18); ctx.lineTo(x + 10, y - 25); 
             }
             ctx.stroke();
 
-            // 頭 (高さ60 -> 42, 半径15 -> 10)
+            // 頭
             ctx.beginPath();
-            ctx.arc(x, y - 42, 10, 0, Math.PI * 2);
+            ctx.arc(x, y - 30, 7, 0, Math.PI * 2);
             ctx.fillStyle = player.stunned ? '#E0E0E0' : '#FFF';
             ctx.fill();
             ctx.stroke();
@@ -862,23 +997,22 @@
         }
 
         function drawUI() {
-            // セーフエリア対応
             const topMargin = 50; 
             const rightMargin = 20;
 
             ctx.fillStyle = '#333';
-            ctx.font = 'bold 24px sans-serif'; // 30 -> 24
+            ctx.font = 'bold 18px sans-serif'; 
             ctx.textAlign = 'right';
             ctx.fillText("Score: " + score, width - rightMargin, topMargin);
 
-            const barX = 50;
-            const barY = topMargin - 15;
-            const barW = 150; // 200 -> 150
-            const barH = 15;  // 20 -> 15
+            const barX = 30;
+            const barY = topMargin - 12;
+            const barW = 100; 
+            const barH = 10;
 
-            ctx.font = '24px serif'; // 30 -> 24
+            ctx.font = '18px serif'; 
             ctx.textAlign = 'left';
-            ctx.fillText('💪', 10, topMargin);
+            ctx.fillText('💪', 5, topMargin);
 
             ctx.fillStyle = '#fff';
             ctx.fillRect(barX, barY, barW, barH);
@@ -890,6 +1024,7 @@
             
             ctx.fillRect(barX, barY, currentBarW, barH);
             ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
             ctx.strokeRect(barX, barY, barW, barH);
         }
 
@@ -897,10 +1032,10 @@
             for (let i = 0; i < count; i++) {
                 particles.push({
                     x: x, y: y,
-                    vx: (Math.random() - 0.5) * 8, // 10 -> 8
-                    vy: (Math.random() - 0.5) * 8,
-                    life: 30, color: color,
-                    size: Math.random() * 4 + 2 // 5 -> 4
+                    vx: (Math.random() - 0.5) * 6, 
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 20, color: color,
+                    size: Math.random() * 3 + 1
                 });
             }
         }
@@ -908,7 +1043,7 @@
         function showFloatText(x, y, text, color) {
             floatingTexts.push({
                 x: x, y: y,
-                text: text, color: color, life: 60
+                text: text, color: color, life: 50
             });
         }
     </script>
