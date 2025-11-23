@@ -4,17 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
-    <!-- PWA設定 -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#87CEEB" />
     <title>ぴよランチ🐥</title>
 
-    <!-- アイコン設定 -->
     <link rel="apple-touch-icon" href="piyolunchqr.png" />
     <link rel="icon" type="image/png" href="piyolunchqr.png" />
 
-    <!-- Web App Manifest -->
     <link
         rel="manifest"
         href="data:application/json;charset=utf-8,%7B%22name%22%3A%22%E3%81%B4%E3%82%88%E3%83%A9%E3%83%B3%E3%83%81%F0%9F%90%A4%22%2C%22short_name%22%3A%22%E3%81%B4%E3%82%88%E3%83%A9%E3%83%B3%E3%83%81%F0%9F%90%A4%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2387CEEB%22%2C%22theme_color%22%3A%22%2387CEEB%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22piyolunchqr.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22piyolunchqr.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D"
@@ -31,11 +28,15 @@
             -webkit-user-select: none;
             height: 100vh;
             width: 100vw;
+            /* iOSでのちらつき防止 */
+            -webkit-tap-highlight-color: transparent;
         }
         canvas {
             display: block;
             width: 100%;
             height: 100%;
+            /* ハードウェアアクセラレーションを有効化 */
+            will-change: transform; 
         }
         #startScreen,
         #gameOverScreen {
@@ -142,7 +143,6 @@
     <canvas id="gameCanvas"></canvas>
     <div id="feverIndicator">🔥 FEVER TIME! 🔥</div>
 
-    <!-- スタート画面 -->
     <div id="startScreen">
         <h1>ぴよランチ🐤</h1>
         <p>ヒヨコにごはんをあげよう</p>
@@ -163,7 +163,6 @@
         </div>
     </div>
 
-    <!-- ゲームオーバー画面 -->
     <div id="gameOverScreen" class="hidden">
         <h1>おなかいっぱい...</h1>
         <p style="font-size: 20px; font-weight: bold">スコア: <span id="finalScore">0</span></p>
@@ -189,7 +188,7 @@
         }
 
         const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { alpha: false }); // アルファなし指定で高速化
         const feverText = document.getElementById("feverIndicator");
 
         // ゲーム状態
@@ -202,9 +201,34 @@
         let feverTimer = 0;
         const FEVER_DURATION = 1200;
 
-        // Retina対応 (軽量化のため1)
+        // Retina対応 (軽量化のため1のままにします)
         let dpr = 1;
         let width, height;
+
+        // ★改善: 絵文字キャッシュシステム
+        // 毎回fillTextを実行するのではなく、一度Canvasに描画して画像として保存します
+        const emojiCache = {};
+        function getEmojiImage(emoji, size) {
+            // キーを作成（文字とサイズで一意にする）
+            const key = emoji + '_' + size;
+            if (emojiCache[key]) {
+                return emojiCache[key];
+            }
+
+            // キャッシュがない場合は生成
+            const c = document.createElement('canvas');
+            const s = Math.ceil(size * 1.2); // 少し余裕を持たせる
+            c.width = s;
+            c.height = s;
+            const cx = c.getContext('2d');
+            cx.font = size + "px serif";
+            cx.textAlign = "center";
+            cx.textBaseline = "middle";
+            cx.fillText(emoji, s/2, s/2 + size * 0.05); // 垂直位置微調整
+
+            emojiCache[key] = c;
+            return c;
+        }
 
         function resize() {
             width = window.innerWidth;
@@ -215,7 +239,11 @@
             canvas.style.height = height + "px";
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
-        window.addEventListener("resize", resize);
+        window.addEventListener("resize", () => {
+            // リサイズイベントの間引き（パフォーマンス対策）
+            if(window.resizeTimeout) clearTimeout(window.resizeTimeout);
+            window.resizeTimeout = setTimeout(resize, 200);
+        });
         resize();
 
         const GRAVITY = 0.6;
@@ -226,7 +254,7 @@
         const CHICK_ZONE_HIGHEST_OFFSET = 380;
 
         // アセット
-        const NORMAL_FOODS = ["🍇", "🍔", "🥦", "🍰"]; // ここで🍉→🍇に変更
+        const NORMAL_FOODS = ["🍇", "🍔", "🥦", "🍰"];
         const FOOD_SIZE_BASE = 29;
         const CLOUDS = [
             { x: 50, y: 80, w: 80, h: 40, speed: 0.3 },
@@ -513,7 +541,6 @@
 
             // --- ヒヨコ処理 ---
             chicks.forEach((c) => {
-                // 1. 飛んでいく (flying)
                 if (c.state === "flying") {
                     c.y -= 4;
                     c.x += Math.sin(frameCount * 0.1) * 1.5;
@@ -528,7 +555,6 @@
                     return;
                 }
 
-                // 2. 待機 (waiting)
                 if (c.state === "waiting") {
                     c.waitTimer--;
                     if (c.waitTimer <= 0) {
@@ -545,7 +571,6 @@
                     return;
                 }
 
-                // 3. 登場 (entering)
                 if (c.state === "entering") {
                     const dx = c.targetX - c.x;
                     c.x += dx * 0.03;
@@ -556,13 +581,11 @@
                     return;
                 }
 
-                // 4. 通常待機 (idle)
                 if (c.stage >= 3) {
                     c.state = "flying";
                     return;
                 }
 
-                // 絵文字の更新 (成長プロセス: 🐣 -> 🐥 -> 🐓)
                 if (c.stage === 0) c.emoji = "🐣";
                 else if (c.stage === 1) c.emoji = "🐥";
                 else if (c.stage === 2) c.emoji = "🐓";
@@ -642,7 +665,6 @@
                     continue;
                 }
 
-                // プレイヤーとアイテムの当たり判定（ジャンプ中のみ）
                 if (!player.grounded && !player.stunned) {
                     const distX = Math.abs(player.x - it.x);
                     const distY = Math.abs(player.y - player.height / 2 - it.y);
@@ -676,7 +698,6 @@
 
                         if (NORMAL_FOODS.includes(it.type)) {
                             if (it.vy > 0) {
-                                // 下向きに落ちているときだけ打ち返す
                                 playSound("hit");
                                 it.vy = -9 - Math.random() * 3;
                                 it.vx = (Math.random() - 0.5) * 6 + player.vx * 0.6;
@@ -692,7 +713,6 @@
                     }
                 }
 
-                // 上向きに飛んでいる食べ物がヒヨコに届く判定
                 if (it.vy < 0 && NORMAL_FOODS.includes(it.type)) {
                     for (let c of chicks) {
                         if (c.stage >= 3 || c.state !== "idle") continue;
@@ -836,63 +856,70 @@
             ctx.lineTo(width, GROUND_Y());
             ctx.stroke();
 
-            // ヒヨコ
+            // ヒヨコ (画像描画に変更)
             chicks.forEach((c) => {
                 if (c.state === "waiting") return;
 
                 ctx.save();
                 ctx.translate(c.x, c.y);
                 if (c.scale !== 1.0) ctx.scale(c.scale, c.scale);
+                
                 let size = 30;
                 if (c.stage === 0) size = 24;
                 if (c.stage === 1) size = 36;
                 if (c.stage === 2) size = 42;
                 if (c.stage >= 3) size = 48;
-                ctx.font = size + "px serif";
-                ctx.textAlign = "center";
-                ctx.fillText(c.emoji, 0, 0);
+                
+                // キャッシュした画像を描画
+                const img = getEmojiImage(c.emoji, size);
+                ctx.drawImage(img, -img.width/2, -img.height/2);
+                
                 ctx.restore();
             });
 
-            // サボテン
+            // サボテン (画像描画に変更)
             cactusList.forEach((c) => {
                 ctx.save();
                 ctx.translate(c.x, c.y);
                 ctx.scale(1, c.scale);
-                ctx.font = "35px serif";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "bottom";
-                ctx.fillText(c.emoji, 0, 5);
+                
+                // 座標調整: 元のfillText(textBaseline='bottom')に合わせる
+                const img = getEmojiImage(c.emoji, 35);
+                ctx.drawImage(img, -img.width/2, -img.height + 5); 
+                
                 ctx.restore();
             });
 
-            // 敵
+            // 敵 (画像描画に変更)
             enemies.forEach((e) => {
                 ctx.save();
                 ctx.translate(e.x, e.y);
                 if (e.vx > 0) ctx.scale(-1, 1);
-                ctx.font = "30px serif";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(e.emoji, 0, 0);
+                
+                const img = getEmojiImage(e.emoji, 30);
+                ctx.drawImage(img, -img.width/2, -img.height/2);
+                
                 ctx.restore();
             });
 
             // プレイヤー
             drawPlayer();
 
-            // 食べ物・おにぎり・唐辛子
+            // 食べ物・おにぎり・唐辛子 (画像描画に変更)
             items.forEach((it) => {
                 ctx.save();
                 ctx.translate(it.x, it.y);
                 ctx.rotate(it.rot);
-                ctx.font = (it.type === "onigiri" ? 36 : FOOD_SIZE_BASE) + "px serif";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
+                
+                let size = (it.type === "onigiri" ? 36 : FOOD_SIZE_BASE);
+                
                 if (player.grounded && it.y > player.y - 50 && Math.abs(player.x - it.x) < 40) {
                     ctx.globalAlpha = 0.6;
                 }
-                ctx.fillText(it.emoji, 0, 0);
+                
+                const img = getEmojiImage(it.emoji, size);
+                ctx.drawImage(img, -img.width/2, -img.height/2);
+
                 ctx.globalAlpha = 1.0;
                 ctx.restore();
             });
@@ -1077,9 +1104,9 @@
             const barW = 100;
             const barH = 10;
 
-            ctx.font = "18px serif";
-            ctx.textAlign = "left";
-            ctx.fillText("💪", 5, topMargin);
+            // 絵文字キャッシュを使って描画
+            const img = getEmojiImage("💪", 18);
+            ctx.drawImage(img, 5, topMargin - 18/2 - 5); // 位置微調整
 
             ctx.fillStyle = "#fff";
             ctx.fillRect(barX, barY, barW, barH);
@@ -1119,7 +1146,7 @@
             });
         }
 
-        // 簡単なテスト（startGame/ resetGame がグローバルにあるか確認）
+        // 簡単なテスト
         console.assert(typeof startGame === "function", "startGame should be defined");
         console.assert(typeof resetGame === "function", "resetGame should be defined");
     </script>
